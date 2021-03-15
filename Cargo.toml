@@ -1,0 +1,15 @@
+[package]
+name = "add-siriocra"
+version = "0.1.0"
+authors = ["Aleksei Zolotov <freopen@freopen.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "1.0.1"
+futures = "0.3.13"
+image = "0.23.14"
+reqwest = { version = "0.11.2", features = ["blocking"] }
+telegram-bot = "0.8.0"
+tokio = { version = "0.2.25", features = ["full"] }
