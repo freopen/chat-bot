@@ -1,46 +1,86 @@
-use futures::StreamExt;
-use std::io::Write;
-use telegram_bot::*;
+use log::{error, info};
+use std::{cmp::min, error::Error, time::Duration};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let token = std::env::var("TELEGRAM_TOKEN").unwrap();
-    let api = Api::new(token.as_str());
-    let overlay = image::io::Reader::open("siriocra.png")?.decode()?;
+use serde_json::json;
 
-    let mut stream = api.stream();
-    stream.allowed_updates(&[AllowedUpdate::Message]);
-    while let Some(update) = stream.next().await {
-        let update = update?;
-        if let UpdateKind::Message(message) = update.kind {
-            let message_id = message.id;
-            let message_chat_id = message.chat.id();
-            let mut send_photo = false;
-            if let Some(source_message_box) = message.reply_to_message {
-                if let MessageOrChannelPost::Message(source_message) = *source_message_box {
-                    if let MessageKind::Photo { data, .. } = source_message.kind {
-                        for photo in data.into_iter() {
-                            let file = api.send(GetFile::new(photo)).await?;
-                            let response =
-                                reqwest::blocking::get(file.get_url(token.as_str()).unwrap())?;
-                            let input_image_bytes = response.bytes()?;
-                            let mut file = std::fs::File::create("input.jpg")?;
-                            file.write_all(&input_image_bytes)?;
-                            let mut image = image::io::Reader::open("input.jpg")?.decode()?;
-                            image::imageops::overlay(&mut image, &overlay, 0, 0);
-                            image.save("output.jpg")?;
-                            send_photo = true;
-                        }
-                    }
-                }
+struct TelegramClient {
+    token: String,
+    http: reqwest::Client,
+    offset: i64,
+}
+
+impl TelegramClient {
+    fn new() -> Self {
+        TelegramClient {
+            token: std::env::var("TELEGRAM_TOKEN").expect("Unable to get Telegram token from env"),
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(10))
+                .connect_timeout(Duration::from_secs(10))
+                .build()
+                .expect("Failed to create http client"),
+            offset: 0,
+        }
+    }
+
+    fn build_url(&self, op: &str) -> String {
+        format!("https://api.telegram.org/bot{}/{}", self.token, op)
+    }
+
+    async fn get_updates(&mut self) -> Result<serde_json::Value, Box<dyn Error>> {
+        info!("Getting updates");
+        let request = self
+            .http
+            .get(self.build_url("getUpdates"))
+            .timeout(Duration::from_secs(90))
+            .json(&json!({
+                "offset": self.offset,
+                "timeout": 60,
+                "allowed_updates": ["message"],
+            }));
+        let response = request.send().await?.json::<serde_json::Value>().await?;
+        if !response["ok"]
+            .as_bool()
+            .ok_or("No ok property in response")?
+        {
+            return Err("Response is not ok".into());
+        }
+
+        {
+            let updates = response["result"]
+                .as_array()
+                .ok_or("getUpdates response is not an array")?;
+            let update_ids = updates
+                .iter()
+                .map(|update| update["update_id"].as_i64().ok_or("No update_id in update"));
+            let mut min_update_id = i64::MAX;
+            for update_id in update_ids {
+                min_update_id = min(min_update_id, update_id?);
             }
-            if send_photo {
-                api.spawn(
-                    SendPhoto::new(message_chat_id, InputFileUpload::with_path("output.jpg"))
-                        .reply_to(message_id),
-                );
+            if min_update_id != i64::MAX {
+                self.offset = min_update_id + 1
+            };
+        };
+
+        Ok(response)
+    }
+}
+
+async fn telegram_bot() -> ! {
+    let mut client = TelegramClient::new();
+    loop {
+        match client.get_updates().await {
+            Ok(response) => {
+                info!("{}", response)
+            }
+            Err(error) => {
+                error!("{}", error)
             }
         }
     }
-    Ok(())
+}
+
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+    tokio::spawn(telegram_bot()).await.unwrap();
 }
