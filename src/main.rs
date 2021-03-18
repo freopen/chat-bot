@@ -1,7 +1,8 @@
 use log::{error, info};
-use std::{cmp::min, error::Error, time::Duration};
+use serde_json::{json, Value};
+use std::time::Duration;
 
-use serde_json::json;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 struct TelegramClient {
     token: String,
@@ -22,45 +23,46 @@ impl TelegramClient {
         }
     }
 
-    fn build_url(&self, op: &str) -> String {
-        format!("https://api.telegram.org/bot{}/{}", self.token, op)
+    fn build_url(&self, method: &str) -> String {
+        format!("https://api.telegram.org/bot{}/{}", self.token, method)
     }
 
-    async fn get_updates(&mut self) -> Result<serde_json::Value, Box<dyn Error>> {
-        info!("Getting updates");
+    async fn run_method(&self, method: &str, params: &Value) -> Result<Value> {
         let request = self
             .http
-            .get(self.build_url("getUpdates"))
-            .timeout(Duration::from_secs(90))
-            .json(&json!({
-                "offset": self.offset,
-                "timeout": 60,
-                "allowed_updates": ["message"],
-            }));
-        let response = request.send().await?.json::<serde_json::Value>().await?;
-        if !response["ok"]
-            .as_bool()
-            .ok_or("No ok property in response")?
-        {
-            return Err("Response is not ok".into());
-        }
-
-        {
-            let updates = response["result"]
-                .as_array()
-                .ok_or("getUpdates response is not an array")?;
-            let update_ids = updates
-                .iter()
-                .map(|update| update["update_id"].as_i64().ok_or("No update_id in update"));
-            let mut min_update_id = i64::MAX;
-            for update_id in update_ids {
-                min_update_id = min(min_update_id, update_id?);
-            }
-            if min_update_id != i64::MAX {
-                self.offset = min_update_id + 1
-            };
+            .post(self.build_url("getUpdates"))
+            .timeout(Duration::from_secs(if method == "getUpdates" {
+                90
+            } else {
+                10
+            }))
+            .json(params);
+        let response = request.send().await?.json::<Value>().await?;
+        let mut response = match response {
+            Value::Object(value) => value,
+            _ => panic!(),
         };
+        if response["ok"].as_bool().unwrap() {
+            Ok(response.remove("result").unwrap())
+        } else {
+            Err(format!("getUpdates returned error: {:?}", response).into())
+        }
+    }
 
+    async fn get_updates(&mut self) -> Result<Value> {
+        let response = self
+            .run_method(
+                "getUpdates",
+                &json!({
+                    "offset": self.offset,
+                    "timeout": 60,
+                    "allowed_updates": ["message"],
+                }),
+            )
+            .await?;
+        if let Some(last_update) = response.as_array().unwrap().last() {
+            self.offset = last_update["update_id"].as_i64().unwrap() + 1;
+        };
         Ok(response)
     }
 }
