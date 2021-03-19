@@ -50,8 +50,8 @@ impl TelegramClient {
         }
     }
 
-    async fn call_method(&self, method: &str, params: &Value) -> Result<Value> {
-        let request = self.http.post(self.build_url(method)).json(params);
+    async fn call_method(&self, method: &str, params: Value) -> Result<Value> {
+        let request = self.http.post(self.build_url(method)).json(&params);
         self.request_to_json(request).await
     }
 
@@ -59,7 +59,7 @@ impl TelegramClient {
         let response = self
             .call_method(
                 "getUpdates",
-                &json!({
+                json!({
                     "offset": self.offset,
                     "timeout": 60,
                     "allowed_updates": ["message"],
@@ -74,7 +74,7 @@ impl TelegramClient {
 
     async fn get_file(&self, file_id: String) -> Result<Bytes> {
         let get_file_result = self
-            .call_method("getFile", &json!({ "file_id": file_id }))
+            .call_method("getFile", json!({ "file_id": file_id }))
             .await?;
         let file_path = get_file_result.as_object().unwrap()["file_path"]
             .as_str()
@@ -128,6 +128,18 @@ async fn process_update(update: Value, telegram_client: TelegramClient) -> Resul
             .get("reply_to_message")
             .and_then(|origin| origin.get("photo")))
         {
+            let client_clone = telegram_client.clone();
+            tokio::spawn(async move {
+                client_clone
+                    .call_method(
+                        "sendChatAction",
+                        json!({
+                            "chat_id": chat_id,
+                            "action": "upload_photo",
+                        }),
+                    )
+                    .await
+            });
             let file_id = sizes.last().unwrap().as_object().unwrap()["file_id"]
                 .as_str()
                 .unwrap();
@@ -211,7 +223,7 @@ async fn main() {
             )?;
             writeln!(buf, " {}", record.args())
         })
-        .filter(None, log::LevelFilter::Trace)
+        .filter(None, log::LevelFilter::Info)
         .init();
 
     tokio::spawn(listen()).await.unwrap();
