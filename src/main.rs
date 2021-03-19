@@ -1,6 +1,7 @@
 use bytes::Bytes;
+use image::GenericImageView;
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::{error, info, warn};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::{io::Write, time::Duration};
@@ -19,9 +20,8 @@ impl TelegramClient {
         TelegramClient {
             token: std::env::var("TELEGRAM_TOKEN").expect("Unable to get Telegram token from env"),
             http: reqwest::Client::builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(90))
                 .connect_timeout(Duration::from_secs(10))
-                .connection_verbose(true)
                 .build()
                 .expect("Failed to create http client"),
             offset: 0,
@@ -51,15 +51,7 @@ impl TelegramClient {
     }
 
     async fn call_method(&self, method: &str, params: &Value) -> Result<Value> {
-        let request = self
-            .http
-            .post(self.build_url(method))
-            .timeout(Duration::from_secs(if method == "getUpdates" {
-                90
-            } else {
-                10
-            }))
-            .json(params);
+        let request = self.http.post(self.build_url(method)).json(params);
         self.request_to_json(request).await
     }
 
@@ -95,8 +87,8 @@ impl TelegramClient {
         Ok(bytes)
     }
 
-    async fn send_photo(&self, photo: Bytes, chat_id: i64, reply_to: i64) -> Result<Value> {
-        let data_part = reqwest::multipart::Part::bytes(photo.to_vec())
+    async fn send_photo(&self, photo: Vec<u8>, chat_id: i64, reply_to: i64) -> Result<Value> {
+        let data_part = reqwest::multipart::Part::bytes(photo)
             .file_name("image.jpg")
             .mime_str("image/jpeg")?;
         let form = reqwest::multipart::Form::new()
@@ -108,17 +100,44 @@ impl TelegramClient {
     }
 }
 
+fn overlay_image(input_file: Bytes) -> Result<Vec<u8>> {
+    let mut img = image::load_from_memory_with_format(&*input_file, image::ImageFormat::Jpeg)?;
+    let ovr = image::open("assets/siriocra.png")?;
+    let (img_w, img_h) = img.dimensions();
+    let (ovr_w, ovr_h) = ovr.dimensions();
+    if img_w * ovr_h < img_h * ovr_w {
+        let new_ovr_h = ovr_h * img_w / ovr_w;
+        let ovr = ovr.resize(img_w, new_ovr_h, image::imageops::CatmullRom);
+        image::imageops::overlay(&mut img, &ovr, 0, img_h - new_ovr_h);
+    } else {
+        let new_ovr_w = ovr_w * img_h / ovr_h;
+        let ovr = ovr.resize(new_ovr_w, img_h, image::imageops::CatmullRom);
+        image::imageops::overlay(&mut img, &ovr, 0, 0);
+    }
+    let mut output = Vec::new();
+    img.write_to(&mut output, image::ImageOutputFormat::Jpeg(100))?;
+    Ok(output)
+}
+
 async fn process_update(update: Value, telegram_client: TelegramClient) -> Result<()> {
     info!("Processing update: {}", update);
     if let Some(message) = update.get("message") {
-        if let Value::Array(ref sizes) = message["photo"] {
-            let chat_id = message["chat"]["id"].as_i64().unwrap();
-            let reply_to = message["message_id"].as_i64().unwrap();
+        let chat_id = message["chat"]["id"].as_i64().unwrap();
+        let reply_to = message["message_id"].as_i64().unwrap();
+        if let Some(Value::Array(ref sizes)) = message.get("photo").or(message
+            .get("reply_to_message")
+            .and_then(|origin| origin.get("photo")))
+        {
             let file_id = sizes.last().unwrap().as_object().unwrap()["file_id"]
                 .as_str()
                 .unwrap();
-            let file = telegram_client.get_file(file_id.into()).await?;
-            telegram_client.send_photo(file, chat_id, reply_to).await?;
+            let input_file = telegram_client.get_file(file_id.into()).await?;
+            let output_file = overlay_image(input_file)?;
+            telegram_client
+                .send_photo(output_file, chat_id, reply_to)
+                .await?;
+        } else {
+            warn!("Photo was not found");
         }
     }
     Ok(())
