@@ -7,15 +7,15 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'add-siriocra'",
+      "name": "Debug executable 'freopen_chat_bot'",
       "cargo": {
         "args": [
           "build",
-          "--bin=add-siriocra",
-          "--package=add-siriocra"
+          "--bin=freopen_chat_bot",
+          "--package=freopen_chat_bot"
         ],
         "filter": {
-          "name": "add-siriocra",
+          "name": "freopen_chat_bot",
           "kind": "bin"
         }
       },
@@ -25,16 +25,16 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'add-siriocra'",
+      "name": "Debug unit tests in executable 'freopen_chat_bot'",
       "cargo": {
         "args": [
           "test",
           "--no-run",
-          "--bin=add-siriocra",
-          "--package=add-siriocra"
+          "--bin=freopen_chat_bot",
+          "--package=freopen_chat_bot"
         ],
         "filter": {
-          "name": "add-siriocra",
+          "name": "freopen_chat_bot",
           "kind": "bin"
         }
       },
