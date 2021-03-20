@@ -1,0 +1,19 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag freopen/chat-bot:latest
+    
+    - name: Publish to Docker Hub
+      run: |
+        docker login -u freopen -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        docker push freopen/chat-bot:latest
