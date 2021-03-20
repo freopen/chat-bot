@@ -1,0 +1,33 @@
+name: Build project and push it to Docker
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag freopen/chat-bot:latest
+    
+    - name: Publish to Docker Hub
+      run: |
+        docker login -u freopen -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        docker push freopen/chat-bot:latest
