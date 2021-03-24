@@ -5,6 +5,6 @@ COPY . .
 RUN cargo install --path .
 
 FROM alpine
-COPY --from=builder /usr/local/cargo/bin/freopen_chat_bot /usr/local/bin/freopen_chat_bot
 COPY assets ./assets
+COPY --from=builder /usr/local/cargo/bin/freopen_chat_bot /usr/local/bin/freopen_chat_bot
 CMD ["freopen_chat_bot"]

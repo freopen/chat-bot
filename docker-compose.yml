@@ -1,0 +1,6 @@
+services:
+  chat-app: 
+    image: "freopen/chat-bot"
+    environment:
+      - TELEGRAM_TOKEN
+    restart: always

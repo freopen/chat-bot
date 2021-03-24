@@ -5,6 +5,7 @@ use log::{error, info, warn};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::{io::Write, time::Duration};
+use tokio::sync::watch;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
@@ -12,7 +13,6 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync 
 struct TelegramClient {
     token: String,
     http: reqwest::Client,
-    offset: i64,
 }
 
 impl TelegramClient {
@@ -24,7 +24,6 @@ impl TelegramClient {
                 .connect_timeout(Duration::from_secs(10))
                 .build()
                 .expect("Failed to create http client"),
-            offset: 0,
         }
     }
 
@@ -55,21 +54,36 @@ impl TelegramClient {
         self.request_to_json(request).await
     }
 
-    async fn get_updates(&mut self) -> Result<Value> {
+    async fn get_updates(&self, offset: i64) -> Result<(i64, Value)> {
         let response = self
             .call_method(
                 "getUpdates",
                 json!({
-                    "offset": self.offset,
+                    "offset": offset,
                     "timeout": 60,
                     "allowed_updates": ["message"],
                 }),
             )
             .await?;
-        if let Some(last_update) = response.as_array().unwrap().last() {
-            self.offset = last_update["update_id"].as_i64().unwrap() + 1;
+        let new_offset = if let Some(last_update) = response.as_array().unwrap().last() {
+            last_update["update_id"].as_i64().unwrap() + 1
+        } else {
+            offset
         };
-        Ok(response)
+        Ok((new_offset, response))
+    }
+
+    async fn flush_offset(&self, offset: i64) -> Result<()> {
+        self.call_method(
+            "getUpdates",
+            json!({
+                "offset": offset,
+                "timeout": 0,
+                "allowed_updates": ["message"],
+            }),
+        )
+        .await?;
+        Ok(())
     }
 
     async fn get_file(&self, file_id: String) -> Result<Bytes> {
@@ -155,16 +169,29 @@ async fn process_update(update: Value, telegram_client: TelegramClient) -> Resul
     Ok(())
 }
 
-async fn listen() -> ! {
-    let mut telegram_client = TelegramClient::new();
+async fn listen(ctrl_c: watch::Receiver<bool>) -> Result<()> {
+    let mut ctrl_c = ctrl_c;
+    let telegram_client = TelegramClient::new();
+    let mut offset = 0;
     loop {
         let updates = {
-            let updates = telegram_client.get_updates().await;
+            let updates = telegram_client.get_updates(offset);
+            let updates = tokio::select! {
+                _ = ctrl_c.changed() => {
+                    info!("Ctrl-C arrived to Telegram listener, flushing current offset.");
+                    telegram_client.flush_offset(offset).await?;
+                    info!("Offset flushed, exiting.");
+                    return Ok(());
+                }
+                updates = updates => updates,
+            };
+
             if let Err(error) = updates {
                 error!("{}", error);
                 continue;
             }
-            if let Value::Array(array) = updates.unwrap() {
+            if let (new_offset, Value::Array(array)) = updates.unwrap() {
+                offset = new_offset;
                 array
             } else {
                 panic!()
@@ -207,6 +234,12 @@ fn format_path(
 
 #[tokio::main]
 async fn main() {
+    let (ctrl_c_sender, ctrl_c) = watch::channel(false);
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("Ctrl-C registered, stopping listeners");
+        ctrl_c_sender.send(true).unwrap();
+    });
     dotenv::dotenv().ok();
     env_logger::Builder::new()
         .format(|buf, record| {
@@ -226,5 +259,5 @@ async fn main() {
         .filter(None, log::LevelFilter::Info)
         .init();
 
-    tokio::spawn(listen()).await.unwrap();
+    tokio::spawn(listen(ctrl_c)).await.unwrap().unwrap();
 }
