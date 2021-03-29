@@ -49,6 +49,8 @@ jobs:
     - name: Add SSH keys
       run: |
         mkdir ~/.ssh
+        touch ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
         echo "${{ secrets.SERVER_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
         echo "${{ secrets.SERVER_PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
         ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
