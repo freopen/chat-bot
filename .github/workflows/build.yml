@@ -1,4 +1,4 @@
-name: Build project and push it to Docker
+name: Build and deploy
 
 on:
   push:
@@ -13,21 +13,47 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Build
       run: cargo build --verbose
+
     - name: Run tests
       run: cargo test --verbose
 
-  docker:
+  build:
     runs-on: ubuntu-latest
     needs: test
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag freopen/chat-bot:latest
     
+    - name: Login to Docker Hub
+      run: docker login -u freopen -p ${{ secrets.DOCKER_HUB_TOKEN }}
+
     - name: Publish to Docker Hub
+      run: docker push freopen/chat-bot:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      DOCKER_HOST: ssh://root@${{ secrets.SERVER_IP }}
+      TELEGRAM_TOKEN: ${ secrets.TELEGRAM_TOKEN }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Add SSH keys
       run: |
-        docker login -u freopen -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker push freopen/chat-bot:latest
+        echo "${{ secrets.SERVER_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        echo "${{ secrets.SERVER_PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
+      shell: bash
+
+    - name: Pull new images
+      run: docker-compose pull
+
+    - name: Update container
+      run: docker-compose up -d
