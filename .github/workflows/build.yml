@@ -51,6 +51,7 @@ jobs:
         mkdir ~/.ssh
         echo "${{ secrets.SERVER_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
         echo "${{ secrets.SERVER_PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
+        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
       shell: bash
 
     - name: Pull new images
