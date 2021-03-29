@@ -41,13 +41,14 @@ jobs:
     needs: build
     env:
       DOCKER_HOST: ssh://root@${{ secrets.SERVER_IP }}
-      TELEGRAM_TOKEN: ${ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
 
     steps:
     - uses: actions/checkout@v2
 
     - name: Add SSH keys
       run: |
+        mkdir ~/.ssh
         echo "${{ secrets.SERVER_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
         echo "${{ secrets.SERVER_PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
       shell: bash
