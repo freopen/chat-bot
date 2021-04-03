@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use bytes::Bytes;
 use image::GenericImageView;
 use lazy_static::lazy_static;
@@ -6,8 +7,6 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::{io::Write, time::Duration};
 use tokio::sync::watch;
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 #[derive(Clone)]
 struct TelegramClient {
@@ -45,7 +44,7 @@ impl TelegramClient {
         if response["ok"].as_bool().unwrap() {
             Ok(response.remove("result").unwrap())
         } else {
-            Err(format!("Telegram call returned error: {:?}", response).into())
+            Err(anyhow!("Telegram call returned error: {:?}", response))
         }
     }
 

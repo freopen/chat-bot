@@ -6,6 +6,7 @@ edition = "2018"
 
 
 [dependencies]
+anyhow = "1.0.39"
 bytes = "1.0.1"
 chrono = "0.4.19"
 dotenv = "0.15.0"
