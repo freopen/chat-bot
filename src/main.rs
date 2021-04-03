@@ -178,7 +178,7 @@ async fn listen(ctrl_c: watch::Receiver<bool>) -> Result<()> {
             let updates = telegram_client.get_updates(offset);
             let updates = tokio::select! {
                 _ = ctrl_c.changed() => {
-                    info!("Ctrl-C arrived to Telegram listener, flushing current offset.");
+                    info!("Shutdown signal arrived to Telegram listener, flushing current offset.");
                     telegram_client.flush_offset(offset).await?;
                     info!("Offset flushed, exiting.");
                     return Ok(());
@@ -232,12 +232,19 @@ fn format_path(
     }
 }
 
+async fn await_signal(signal_kind: tokio::signal::unix::SignalKind) -> Result<()> {
+    tokio::signal::unix::signal(signal_kind)?.recv().await;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     let (ctrl_c_sender, ctrl_c) = watch::channel(false);
     tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        info!("Ctrl-C registered, stopping listeners");
+        tokio::select! {
+            _ = await_signal(tokio::signal::unix::SignalKind::interrupt()) => {info!("SIGINT received");},
+            _ = await_signal(tokio::signal::unix::SignalKind::terminate()) => {info!("SIGTERM received");},
+        };
         ctrl_c_sender.send(true).unwrap();
     });
     dotenv::dotenv().ok();
@@ -259,5 +266,6 @@ async fn main() {
         .filter(None, log::LevelFilter::Info)
         .init();
 
+    info!("Listening for telegram updates...");
     tokio::spawn(listen(ctrl_c)).await.unwrap().unwrap();
 }
