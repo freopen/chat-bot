@@ -1,9 +1,8 @@
-use bytes::Bytes;
 use anyhow::Result;
 use image::GenericImageView;
 
-pub(crate) fn overlay_image(input_file: Bytes) -> Result<Vec<u8>> {
-    let mut img = image::load_from_memory_with_format(&*input_file, image::ImageFormat::Jpeg)?;
+pub(crate) fn overlay_image(input_file: Vec<u8>) -> Result<Vec<u8>> {
+    let mut img = image::load_from_memory(&input_file)?;
     let ovr = image::open("assets/siriocra.png")?;
     let (img_w, img_h) = img.dimensions();
     let (ovr_w, ovr_h) = ovr.dimensions();

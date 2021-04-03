@@ -1,10 +1,10 @@
-use log::{info, warn, error};
-use serde_json::{Value, json};
-use tokio::sync::watch;
 use anyhow::Result;
+use log::{error, info, warn};
+use serde_json::{json, Value};
+use tokio::sync::watch;
 
-use crate::telegram_client::TelegramClient;
 use crate::enhance;
+use crate::telegram_client::TelegramClient;
 
 async fn process_update(update: Value, telegram_client: TelegramClient) -> Result<()> {
     info!("Processing update: {}", update);
@@ -31,7 +31,7 @@ async fn process_update(update: Value, telegram_client: TelegramClient) -> Resul
                 .as_str()
                 .unwrap();
             let input_file = telegram_client.get_file(file_id.into()).await?;
-            let output_file = enhance::overlay_image(input_file)?;
+            let output_file = enhance::overlay_image(input_file.to_vec())?;
             telegram_client
                 .send_photo(output_file, chat_id, reply_to)
                 .await?;

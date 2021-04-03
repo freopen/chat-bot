@@ -3,4 +3,5 @@ services:
     image: "freopen/chat-bot"
     environment:
       - TELEGRAM_TOKEN
+      - DISCORD_TOKEN
     restart: always

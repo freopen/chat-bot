@@ -1,3 +1,4 @@
+mod discord_bot;
 mod enhance;
 mod telegram_bot;
 mod telegram_client;
@@ -52,9 +53,10 @@ async fn main() {
         .format(|buf, record| {
             write!(
                 buf,
-                "{} {} ",
+                "{} {} {} ",
                 chrono::Local::now().format("%H:%M:%S%.3f"),
                 buf.default_styled_level(record.level()),
+                record.module_path().unwrap_or("<unknown>"),
             )?;
             format_path(
                 record.file().unwrap_or("<unknown>"),
@@ -63,12 +65,13 @@ async fn main() {
             )?;
             writeln!(buf, " {}", record.args())
         })
-        .filter(None, log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("freopen_chat_bot", log::LevelFilter::Info)
         .init();
 
     info!("Listening for telegram updates...");
-    tokio::spawn(telegram_bot::listen(ctrl_c))
-        .await
-        .unwrap()
-        .unwrap();
+    let telegram_thread = tokio::spawn(telegram_bot::listen(ctrl_c.clone()));
+    let discord_thread = tokio::spawn(discord_bot::listen());
+    telegram_thread.await.unwrap().unwrap();
+    discord_thread.abort();
 }

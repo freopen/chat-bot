@@ -42,6 +42,7 @@ jobs:
     env:
       DOCKER_HOST: ssh://root@${{ secrets.SERVER_IP }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
 
     steps:
     - uses: actions/checkout@v2
