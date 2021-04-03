@@ -1,5 +1,5 @@
 FROM rust:alpine as builder
-RUN apk add --no-cache musl-dev openssl-dev perl make
+RUN apk add --no-cache musl-dev
 WORKDIR /usr/src/freopen_chat_bot
 COPY . .
 RUN cargo install --path .
