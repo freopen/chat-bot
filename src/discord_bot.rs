@@ -22,7 +22,7 @@ async fn handle_reaction(ctx: &Context, reaction: &Reaction) -> Result<()> {
             .await
             .unwrap();
         info!("{:?}", msg);
-        if msg.attachments.len() == 0 {
+        if msg.attachments.is_empty() {
             return Ok(());
         }
         let tasks: Vec<_> = msg

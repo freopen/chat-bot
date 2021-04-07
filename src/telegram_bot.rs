@@ -11,10 +11,11 @@ async fn process_update(update: Value, telegram_client: TelegramClient) -> Resul
     if let Some(message) = update.get("message") {
         let chat_id = message["chat"]["id"].as_i64().unwrap();
         let reply_to = message["message_id"].as_i64().unwrap();
-        if let Some(Value::Array(ref sizes)) = message.get("photo").or(message
-            .get("reply_to_message")
-            .and_then(|origin| origin.get("photo")))
-        {
+        if let Some(Value::Array(ref sizes)) = message.get("photo").or_else(|| {
+            message
+                .get("reply_to_message")
+                .and_then(|origin| origin.get("photo"))
+        }) {
             let client_clone = telegram_client.clone();
             tokio::spawn(async move {
                 client_clone
