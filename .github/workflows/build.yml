@@ -64,3 +64,6 @@ jobs:
 
     - name: Update container
       run: docker-compose up -d
+
+    - name: Prune old images
+      run: docker image prune -a -f
