@@ -19,5 +19,8 @@ jobs:
     - name: Install audit tool
       run: cargo install --force cargo-audit
 
+    - name: Generate lockfile
+      run: cargo generate-lockfile
+
     - name: Cargo audit
       run: cargo audit
