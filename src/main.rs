@@ -5,7 +5,7 @@ mod telegram_client;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use regex::Regex;
 use std::io::Write;
 use tokio::sync::watch;
@@ -72,6 +72,9 @@ async fn main() {
     info!("Listening for telegram updates...");
     let telegram_thread = tokio::spawn(telegram_bot::listen(ctrl_c.clone()));
     let discord_thread = tokio::spawn(discord_bot::listen());
-    telegram_thread.await.unwrap().unwrap();
+    telegram_thread
+        .await
+        .unwrap()
+        .unwrap_or_else(|err| error!("{:#?}", err));
     discord_thread.abort();
 }

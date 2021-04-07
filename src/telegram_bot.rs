@@ -1,25 +1,36 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::{error, info, warn};
 use serde_json::{json, Value};
 use tokio::sync::watch;
 
-use crate::enhance;
 use crate::telegram_client::TelegramClient;
+use crate::{
+    enhance,
+    telegram_client::{Message, Update, UpdateEnum},
+};
 
-async fn process_update(update: Value, telegram_client: TelegramClient) -> Result<()> {
-    info!("Processing update: {}", update);
-    if let Some(message) = update.get("message") {
-        let chat_id = message["chat"]["id"].as_i64().unwrap();
-        let reply_to = message["message_id"].as_i64().unwrap();
-        if let Some(Value::Array(ref sizes)) = message.get("photo").or_else(|| {
-            message
-                .get("reply_to_message")
-                .and_then(|origin| origin.get("photo"))
-        }) {
+async fn process_update(update: Update, telegram_client: TelegramClient) -> Result<()> {
+    info!("Processing update: {:#?}", update);
+    if let UpdateEnum::Message(message) = update.update_enum {
+        match &message.text {
+            Some(text) if text.starts_with("/enhance") => {}
+            _ => return Ok(()),
+        }
+        let message_with_photo = match message {
+            Message { photo: Some(_), .. } => Some(&message),
+            Message {
+                reply_to_message: Some(ref reply_to_message),
+                ..
+            } if reply_to_message.photo.is_some() => Some(reply_to_message.as_ref()),
+            _ => None,
+        };
+
+        if let Some(message_with_photo) = message_with_photo {
+            let chat_id = message.chat.id;
             let client_clone = telegram_client.clone();
             tokio::spawn(async move {
                 client_clone
-                    .call_method(
+                    .call_method::<Value, Value>(
                         "sendChatAction",
                         json!({
                             "chat_id": chat_id,
@@ -28,13 +39,17 @@ async fn process_update(update: Value, telegram_client: TelegramClient) -> Resul
                     )
                     .await
             });
-            let file_id = sizes.last().unwrap().as_object().unwrap()["file_id"]
-                .as_str()
-                .unwrap();
+            let file_id = &message_with_photo
+                .photo
+                .as_ref()
+                .unwrap()
+                .last()
+                .context("Photo field has no photo sizes")?
+                .file_id;
             let input_file = telegram_client.get_file(file_id.into()).await?;
             let output_file = enhance::overlay_image(input_file.to_vec())?;
             telegram_client
-                .send_photo(output_file, chat_id, reply_to)
+                .send_photo(output_file, message.chat.id, message.message_id)
                 .await?;
         } else {
             warn!("Photo was not found");
@@ -61,15 +76,12 @@ pub async fn listen(ctrl_c: watch::Receiver<bool>) -> Result<()> {
             };
 
             if let Err(error) = updates {
-                error!("{}", error);
+                error!("{:#?}", error);
                 continue;
             }
-            if let (new_offset, Value::Array(array)) = updates.unwrap() {
-                offset = new_offset;
-                array
-            } else {
-                panic!()
-            }
+            let (new_offset, updates) = updates?;
+            offset = new_offset;
+            updates
         };
         let joins: Vec<_> = updates
             .into_iter()
