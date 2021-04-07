@@ -8,17 +8,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Cargo check
-      run: cargo check --verbose
-
-    - name: Cargo clippy
-      run: cargo clippy --verbose
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          components: clippy
+      - run: cargo check --verbose
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
 
   build:
     runs-on: ubuntu-latest
