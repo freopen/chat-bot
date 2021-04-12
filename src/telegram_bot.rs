@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use futures::StreamExt;
-use log::error;
+use lazy_static::lazy_static;
+use log::{error, info};
 use teloxide::{
     net::Download,
     prelude::*,
     requests::RequesterExt,
-    types::{ChatAction, InputFile},
+    types::{ChatAction, ChatKind, InputFile},
     utils::command::BotCommand,
     Bot,
 };
@@ -14,12 +15,28 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use crate::enhance;
 
 #[derive(BotCommand, Debug)]
-#[command(rename = "lowercase", parse_with = "split")]
+#[command(rename = "lowercase")]
 enum FreopenBotCommand {
-    Sirify,
-    Ayrify,
-    Foxify,
-    Ukulelify,
+    Sirify(String),
+    Ayrify(String),
+    Foxify(String),
+    Ukulelify(String),
+}
+
+fn debug_format_message(message: &Message) -> String {
+    lazy_static! {
+        static ref UNKNOWN: String = String::from("unknown");
+        static ref PRIVATE: String = String::from("private");
+    }
+    let user = message
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .unwrap_or(&UNKNOWN);
+    let chat = match &message.chat.kind {
+        ChatKind::Public(public) => public.title.as_ref().unwrap_or(&UNKNOWN),
+        ChatKind::Private(_) => &PRIVATE,
+    };
+    format!("user: {}, chat: {}", user, chat)
 }
 
 async fn process_message(context: UpdateWithCx<AutoSend<Bot>, Message>) -> Result<()> {
@@ -45,13 +62,15 @@ async fn process_message(context: UpdateWithCx<AutoSend<Bot>, Message>) -> Resul
                 .await?;
                 buf
             };
-            let filename = match command {
-                FreopenBotCommand::Sirify => "sirify",
-                FreopenBotCommand::Ayrify => "ayrify",
-                FreopenBotCommand::Foxify => "foxify",
-                FreopenBotCommand::Ukulelify => "ukulelify",
+            let (filename, param) = match command {
+                FreopenBotCommand::Sirify(param) => ("sirify", param),
+                FreopenBotCommand::Ayrify(param) => ("ayrify", param),
+                FreopenBotCommand::Foxify(param) => ("foxify", param),
+                FreopenBotCommand::Ukulelify(param) => ("ukulelify", param),
             };
-            let output_photo = enhance::overlay_image(filename, photo)?;
+            let mirror = param == "mirror";
+            info!("Enhancing photo with template {}(m:{}), {}", filename, mirror, debug_format_message(message));
+            let output_photo = enhance::overlay_image(filename, photo, mirror)?;
             context
                 .answer_photo(InputFile::memory("image.jpg", output_photo))
                 .reply_to_message_id(message.id)
