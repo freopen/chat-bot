@@ -31,6 +31,11 @@ serenity = { version = "0.10.5", default-features = false, features = [
   "rustls_backend",
   "model",
 ] }
-teloxide = { version = "0.4.0", features = ["auto-send", "macros"] }
+teloxide = { version = "0.4.0", features = ["auto-send", "macros", "rustls"] }
 tokio = { version = "1.4.0", features = ["full"] }
 tokio-stream = "0.1.5"
+
+# TODO: This section is a quick-fix to avoid linking OpenSSL. Remove when new Teloxide version released.
+[patch.crates-io]
+teloxide = { git = "https://github.com/teloxide/teloxide", branch = "dev" }
+teloxide-core = { git = "https://github.com/teloxide/teloxide-core", branch = "master" }
