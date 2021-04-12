@@ -1,9 +1,9 @@
 use anyhow::Result;
 use image::GenericImageView;
 
-pub(crate) fn overlay_image(input_file: Vec<u8>) -> Result<Vec<u8>> {
+pub(crate) fn overlay_image(filename: &str, input_file: Vec<u8>) -> Result<Vec<u8>> {
     let mut img = image::load_from_memory(&input_file)?;
-    let ovr = image::open("assets/siriocra.png")?;
+    let ovr = image::open(format!("assets/{}.png", filename))?;
     let (img_w, img_h) = img.dimensions();
     let (ovr_w, ovr_h) = ovr.dimensions();
     if img_w * ovr_h < img_h * ovr_w {

@@ -45,6 +45,7 @@ jobs:
     env:
       DOCKER_HOST: ssh://root@${{ secrets.SERVER_IP }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_BOTNAME: ${{ secrets.TELEGRAM_BOTNAME }}
       DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
 
     steps:

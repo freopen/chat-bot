@@ -11,7 +11,7 @@ use crate::enhance;
 struct Handler;
 
 async fn process_image(attachment: Attachment) -> Result<Vec<u8>> {
-    enhance::overlay_image(attachment.download().await?)
+    enhance::overlay_image("foxify", attachment.download().await?)
 }
 
 async fn handle_reaction(ctx: &Context, reaction: &Reaction) -> Result<()> {

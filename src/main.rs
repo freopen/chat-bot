@@ -1,14 +1,11 @@
 mod discord_bot;
 mod enhance;
 mod telegram_bot;
-mod telegram_client;
 
-use anyhow::Result;
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::info;
 use regex::Regex;
 use std::io::Write;
-use tokio::sync::watch;
 
 fn format_path(
     path: &str,
@@ -33,21 +30,8 @@ fn format_path(
     }
 }
 
-async fn await_signal(signal_kind: tokio::signal::unix::SignalKind) -> Result<()> {
-    tokio::signal::unix::signal(signal_kind)?.recv().await;
-    Ok(())
-}
-
 #[tokio::main]
 async fn main() {
-    let (ctrl_c_sender, ctrl_c) = watch::channel(false);
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = await_signal(tokio::signal::unix::SignalKind::interrupt()) => {info!("SIGINT received");},
-            _ = await_signal(tokio::signal::unix::SignalKind::terminate()) => {info!("SIGTERM received");},
-        };
-        ctrl_c_sender.send(true).unwrap();
-    });
     dotenv::dotenv().ok();
     env_logger::Builder::new()
         .format(|buf, record| {
@@ -70,11 +54,8 @@ async fn main() {
         .init();
 
     info!("Listening for telegram updates...");
-    let telegram_thread = tokio::spawn(telegram_bot::listen(ctrl_c.clone()));
+    let telegram_thread = tokio::spawn(telegram_bot::listen());
     let discord_thread = tokio::spawn(discord_bot::listen());
-    telegram_thread
-        .await
-        .unwrap()
-        .unwrap_or_else(|err| error!("{:#?}", err));
-    discord_thread.abort();
+    telegram_thread.await.unwrap().unwrap();
+    discord_thread.await.unwrap().unwrap();
 }
