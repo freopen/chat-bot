@@ -1,6 +1,7 @@
 mod discord_bot;
 mod enhance;
 mod telegram_bot;
+mod subscribe;
 
 use lazy_static::lazy_static;
 use log::info;

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package subscribe;
+
+message Subscription {
+  string url = 1;
+  string last_message_id = 2;
+}
+
+message SubscriptionList {
+  repeated Subscription subscriptions = 1;
+  int64 telegram_chat_id = 2;
+}

@@ -15,6 +15,7 @@ futures = "0.3.14"
 image = "0.23.14"
 lazy_static = "1.4.0"
 log = "0.4.14"
+prost = "0.7.0"
 regex = "1.4.5"
 reqwest = { version = "0.11.2", default-features = false, features = [
   "rustls-tls",
@@ -39,3 +40,6 @@ tokio-stream = "0.1.5"
 [patch.crates-io]
 teloxide = { git = "https://github.com/teloxide/teloxide", branch = "dev" }
 teloxide-core = { git = "https://github.com/teloxide/teloxide-core", branch = "master" }
+
+[build-dependencies]
+prost-build = "0.7.0"
