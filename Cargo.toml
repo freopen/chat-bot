@@ -17,7 +17,7 @@ lazy_static = "1.4.0"
 log = "0.4.14"
 prost = "0.7.0"
 regex = "1.4.5"
-reqwest = { version = "0.11.2", default-features = false, features = [
+reqwest = { version = "0.11.3", default-features = false, features = [
   "rustls-tls",
   "gzip",
   "brotli",
@@ -31,7 +31,7 @@ serenity = { version = "0.10.5", default-features = false, features = [
   "model",
 ] }
 teloxide = { version = "0.4.0", features = ["auto-send", "macros", "rustls"] }
-tokio = { version = "1.4.0", features = ["full"] }
+tokio = { version = "1.5.0", features = ["full"] }
 tokio-stream = "0.1.5"
 
 # TODO: This section is a quick-fix to avoid linking OpenSSL. Remove when new Teloxide version released.
