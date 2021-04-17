@@ -1,12 +1,20 @@
+mod db;
 mod discord_bot;
 mod enhance;
-mod telegram_bot;
 mod subscribe;
+mod telegram_bot;
 
+use anyhow::Result;
 use lazy_static::lazy_static;
 use log::info;
 use regex::Regex;
 use std::io::Write;
+use tokio::{
+    signal::unix::{signal, SignalKind},
+    spawn,
+};
+
+use crate::db::*;
 
 fn format_path(
     path: &str,
@@ -31,8 +39,7 @@ fn format_path(
     }
 }
 
-#[tokio::main]
-async fn main() {
+async fn run() -> Result<()> {
     dotenv::dotenv().ok();
     env_logger::Builder::new()
         .format(|buf, record| {
@@ -55,8 +62,20 @@ async fn main() {
         .init();
 
     info!("Listening for telegram updates...");
-    let telegram_thread = tokio::spawn(telegram_bot::listen());
-    let discord_thread = tokio::spawn(discord_bot::listen());
-    telegram_thread.await.unwrap().unwrap();
-    discord_thread.await.unwrap().unwrap();
+    let telegram_thread = spawn(telegram_bot::listen());
+    let discord_thread = spawn(discord_bot::listen());
+    signal(SignalKind::terminate())?.recv().await;
+    info!("Abort signal received");
+    telegram_thread.abort();
+    info!("Telegram thread aborted");
+    discord_thread.abort();
+    info!("Discord thread aborted");
+    DB.flush()?;
+    info!("DB flushed");
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    run().await
 }

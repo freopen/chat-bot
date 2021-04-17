@@ -11,3 +11,6 @@ Cargo.lock
 
 # Dotenv file
 /.env
+
+# Test database
+/db/
