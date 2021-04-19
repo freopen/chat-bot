@@ -12,7 +12,10 @@ use teloxide::{
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use crate::enhance;
+use crate::{
+    db::{Subscription, DB},
+    enhance,
+};
 
 #[derive(BotCommand, Debug)]
 #[command(rename = "lowercase")]
@@ -21,6 +24,7 @@ enum FreopenBotCommand {
     Ayrify(String),
     Foxify(String),
     Ukulelify(String),
+    Subscribe(String),
 }
 
 fn debug_format_message(message: &Message) -> String {
@@ -39,13 +43,81 @@ fn debug_format_message(message: &Message) -> String {
     format!("user: {}, chat: {}", user, chat)
 }
 
-async fn process_message(context: UpdateWithCx<AutoSend<Bot>, Message>) -> Result<()> {
+async fn subscribe_command(
+    params: String,
+    context: &UpdateWithCx<AutoSend<Bot>, Message>,
+) -> Result<()> {
+    match params.split_whitespace().collect::<Vec<_>>().as_slice() {
+        ["add", url] => {
+            DB.write(|db| {
+                let mut subs = db
+                    .subscribe
+                    .chat_to_sub
+                    .remove(&context.chat_id())
+                    .unwrap_or_default();
+                subs.push(Subscription::RSS {
+                    url: url.to_string(),
+                    last_entry: String::new(),
+                });
+                db.subscribe.chat_to_sub.insert(context.chat_id(), subs);
+            })?;
+            DB.save()?;
+            context.answer("OK").await?;
+        }
+        ["list"] => {
+            let subs: Vec<String> = DB.read(|db| {
+                db.subscribe
+                    .chat_to_sub
+                    .get(&context.chat_id())
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|sub| match sub {
+                        Subscription::RSS { url, .. } => url,
+                    })
+                    .collect()
+            })?;
+
+            context
+                .answer(format!("List of your subs: \n{}", subs.join("\n"),))
+                .await?;
+        }
+        ["remove", url] => {
+            DB.write(|db| {
+                let mut subs = db
+                    .subscribe
+                    .chat_to_sub
+                    .remove(&context.chat_id())
+                    .unwrap_or_default();
+                subs.retain(|sub| match sub {
+                    Subscription::RSS { url: sub_url, .. } => url != sub_url,
+                });
+                if !subs.is_empty() {
+                    db.subscribe.chat_to_sub.insert(context.chat_id(), subs);
+                }
+            })?;
+            DB.save()?;
+            context.answer("OK").await?;
+        }
+        _ => {
+            context
+                .answer("Usage: add <url> | list | remove <url>")
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+async fn process_message(context: &UpdateWithCx<AutoSend<Bot>, Message>) -> Result<()> {
     let message = &context.update;
     let bot = &context.requester;
     if let Ok(command) = FreopenBotCommand::parse(
         message.text().unwrap_or(""),
         std::env::var("TELEGRAM_BOTNAME")?,
     ) {
+        if let FreopenBotCommand::Subscribe(params) = command {
+            return subscribe_command(params, context).await;
+        }
         let photo = message
             .photo()
             .or_else(|| message.reply_to_message()?.photo());
@@ -67,9 +139,15 @@ async fn process_message(context: UpdateWithCx<AutoSend<Bot>, Message>) -> Resul
                 FreopenBotCommand::Ayrify(param) => ("ayrify", param),
                 FreopenBotCommand::Foxify(param) => ("foxify", param),
                 FreopenBotCommand::Ukulelify(param) => ("ukulelify", param),
+                _ => return Ok(()),
             };
             let mirror = param == "mirror";
-            info!("Enhancing photo with template {}(m:{}), {}", filename, mirror, debug_format_message(message));
+            info!(
+                "Enhancing photo with template {}(m:{}), {}",
+                filename,
+                mirror,
+                debug_format_message(message)
+            );
             let output_photo = enhance::overlay_image(filename, photo, mirror)?;
             context
                 .answer_photo(InputFile::memory("image.jpg", output_photo))
@@ -83,7 +161,8 @@ async fn process_message(context: UpdateWithCx<AutoSend<Bot>, Message>) -> Resul
 async fn messages_handler(rx: DispatcherHandlerRx<AutoSend<Bot>, Message>) {
     UnboundedReceiverStream::new(rx)
         .for_each_concurrent(None, |message| async move {
-            if let Err(err) = process_message(message).await {
+            if let Err(err) = process_message(&message).await {
+                message.answer(format!("Error: {:#?}", err));
                 error!("{:?}", err);
             }
         })

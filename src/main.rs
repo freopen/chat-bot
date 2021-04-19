@@ -1,7 +1,6 @@
 mod db;
 mod discord_bot;
 mod enhance;
-mod subscribe;
 mod telegram_bot;
 
 use anyhow::Result;
@@ -70,7 +69,7 @@ async fn run() -> Result<()> {
     info!("Telegram thread aborted");
     discord_thread.abort();
     info!("Discord thread aborted");
-    DB.flush()?;
+    DB.save()?;
     info!("DB flushed");
     Ok(())
 }
