@@ -2,6 +2,7 @@ mod db;
 mod discord_bot;
 mod enhance;
 mod telegram_bot;
+mod subscribe;
 
 use anyhow::Result;
 use lazy_static::lazy_static;

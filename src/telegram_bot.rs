@@ -12,10 +12,7 @@ use teloxide::{
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use crate::{
-    db::{Subscription, DB},
-    enhance,
-};
+use crate::{enhance, subscribe::subscribe_command};
 
 #[derive(BotCommand, Debug)]
 #[command(rename = "lowercase")]
@@ -41,68 +38,6 @@ fn debug_format_message(message: &Message) -> String {
         ChatKind::Private(_) => &PRIVATE,
     };
     format!("user: {}, chat: {}", user, chat)
-}
-
-async fn subscribe_command(
-    params: String,
-    context: &UpdateWithCx<AutoSend<Bot>, Message>,
-) -> Result<()> {
-    match params.split_whitespace().collect::<Vec<_>>().as_slice() {
-        ["add", url] => {
-            DB.write(|db| {
-                let subs = db
-                    .subscribe
-                    .chat_to_sub
-                    .entry(context.chat_id())
-                    .or_default();
-                subs.push(Subscription::RSS {
-                    url: url.to_string(),
-                    last_entry: String::new(),
-                });
-            })?;
-            DB.save()?;
-            context.answer("OK").await?;
-        }
-        ["list"] => {
-            let subs: Vec<String> = DB.read(|db| {
-                db.subscribe
-                    .chat_to_sub
-                    .get(&context.chat_id())
-                    .map(|subs| {
-                        subs.iter()
-                            .map(|sub| match sub {
-                                Subscription::RSS { url, .. } => url.clone(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or(vec![])
-            })?;
-
-            context
-                .answer(format!("List of your subs: \n{}", subs.join("\n"),))
-                .await?;
-        }
-        ["remove", url] => {
-            DB.write(|db| {
-                let subs = db
-                    .subscribe
-                    .chat_to_sub
-                    .entry(context.chat_id())
-                    .or_default();
-                subs.retain(|sub| match sub {
-                    Subscription::RSS { url: sub_url, .. } => url != sub_url,
-                });
-            })?;
-            DB.save()?;
-            context.answer("OK").await?;
-        }
-        _ => {
-            context
-                .answer("Usage: add <url> | list | remove <url>")
-                .await?;
-        }
-    }
-    Ok(())
 }
 
 async fn process_message(context: &UpdateWithCx<AutoSend<Bot>, Message>) -> Result<()> {
