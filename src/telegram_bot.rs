@@ -50,16 +50,15 @@ async fn subscribe_command(
     match params.split_whitespace().collect::<Vec<_>>().as_slice() {
         ["add", url] => {
             DB.write(|db| {
-                let mut subs = db
+                let subs = db
                     .subscribe
                     .chat_to_sub
-                    .remove(&context.chat_id())
-                    .unwrap_or_default();
+                    .entry(context.chat_id())
+                    .or_default();
                 subs.push(Subscription::RSS {
                     url: url.to_string(),
                     last_entry: String::new(),
                 });
-                db.subscribe.chat_to_sub.insert(context.chat_id(), subs);
             })?;
             DB.save()?;
             context.answer("OK").await?;
@@ -69,13 +68,14 @@ async fn subscribe_command(
                 db.subscribe
                     .chat_to_sub
                     .get(&context.chat_id())
-                    .cloned()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|sub| match sub {
-                        Subscription::RSS { url, .. } => url,
+                    .map(|subs| {
+                        subs.iter()
+                            .map(|sub| match sub {
+                                Subscription::RSS { url, .. } => url.clone(),
+                            })
+                            .collect()
                     })
-                    .collect()
+                    .unwrap_or(vec![])
             })?;
 
             context
@@ -84,17 +84,14 @@ async fn subscribe_command(
         }
         ["remove", url] => {
             DB.write(|db| {
-                let mut subs = db
+                let subs = db
                     .subscribe
                     .chat_to_sub
-                    .remove(&context.chat_id())
-                    .unwrap_or_default();
+                    .entry(context.chat_id())
+                    .or_default();
                 subs.retain(|sub| match sub {
                     Subscription::RSS { url: sub_url, .. } => url != sub_url,
                 });
-                if !subs.is_empty() {
-                    db.subscribe.chat_to_sub.insert(context.chat_id(), subs);
-                }
             })?;
             DB.save()?;
             context.answer("OK").await?;

@@ -5,15 +5,9 @@ mod telegram_bot;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use log::info;
 use regex::Regex;
 use std::io::Write;
-use tokio::{
-    signal::unix::{signal, SignalKind},
-    spawn,
-};
-
-use crate::db::*;
+use tokio::{select, spawn};
 
 fn format_path(
     path: &str,
@@ -60,17 +54,14 @@ async fn run() -> Result<()> {
         .filter_module("freopen_chat_bot", log::LevelFilter::Info)
         .init();
 
-    info!("Listening for telegram updates...");
-    let telegram_thread = spawn(telegram_bot::listen());
-    let discord_thread = spawn(discord_bot::listen());
-    signal(SignalKind::terminate())?.recv().await;
-    info!("Abort signal received");
-    telegram_thread.abort();
-    info!("Telegram thread aborted");
-    discord_thread.abort();
-    info!("Discord thread aborted");
-    DB.save()?;
-    info!("DB flushed");
+    select! {
+        result = spawn(telegram_bot::listen()) => {
+            result??;
+        }
+        result = spawn(discord_bot::listen()) => {
+            result??;
+        }
+    }
     Ok(())
 }
 
