@@ -10,9 +10,13 @@ use teloxide::{
     utils::command::BotCommand,
     Bot,
 };
+use tokio::select;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use crate::{enhance, subscribe::subscribe_command};
+use crate::{
+    enhance,
+    subscribe::{self, subscribe_command},
+};
 
 #[derive(BotCommand, Debug)]
 #[command(rename = "lowercase")]
@@ -94,7 +98,10 @@ async fn messages_handler(rx: DispatcherHandlerRx<AutoSend<Bot>, Message>) {
     UnboundedReceiverStream::new(rx)
         .for_each_concurrent(None, |message| async move {
             if let Err(err) = process_message(&message).await {
-                message.answer(format!("Error: {:#?}", err));
+                let _ = message
+                    .answer(format!("Error: {:?}", err))
+                    .await
+                    .map_err(|err| error!("{:?}", err));
                 error!("{:?}", err);
             }
         })
@@ -103,9 +110,11 @@ async fn messages_handler(rx: DispatcherHandlerRx<AutoSend<Bot>, Message>) {
 
 pub async fn listen() -> Result<()> {
     let bot = Bot::new(std::env::var("TELEGRAM_TOKEN")?).auto_send();
-    Dispatcher::new(bot)
-        .messages_handler(messages_handler)
-        .dispatch()
-        .await;
+    let sub_bot = bot.clone();
+    let dispatcher = Dispatcher::new(bot).messages_handler(messages_handler);
+    select! {
+        _ = dispatcher.dispatch() => {}
+        result = subscribe::listen(sub_bot) => {result?;}
+    }
     Ok(())
 }
