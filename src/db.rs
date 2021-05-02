@@ -4,23 +4,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum Subscription {
-    RSS { url: String, last_entry: String },
+pub enum SubInfo {
+    RSS { last_entry: String },
 }
 
-impl PartialEq for Subscription {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Subscription::RSS { url, .. }, Subscription::RSS { url:other_url, .. }) => {
-                url == other_url
-            }
-        }
-    }
-}
+type Subscriptions = HashMap<String, SubInfo>;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SubscribeInfo {
-    pub chat_to_sub: HashMap<i64, Vec<Subscription>>,
+    pub chat_to_sub: HashMap<i64, Subscriptions>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]

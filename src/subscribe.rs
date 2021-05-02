@@ -15,10 +15,12 @@ pub async fn subscribe_command(
                     .chat_to_sub
                     .entry(context.chat_id())
                     .or_default();
-                subs.push(Subscription::RSS {
-                    url: url.to_string(),
-                    last_entry: String::new(),
-                });
+                subs.insert(
+                    url.to_string(),
+                    SubInfo::RSS {
+                        last_entry: String::new(),
+                    },
+                );
             })?;
             DB.save()?;
             context.answer("OK").await?;
@@ -28,13 +30,7 @@ pub async fn subscribe_command(
                 db.subscribe
                     .chat_to_sub
                     .get(&context.chat_id())
-                    .map(|subs| {
-                        subs.iter()
-                            .map(|sub| match sub {
-                                Subscription::RSS { url, .. } => url.clone(),
-                            })
-                            .collect()
-                    })
+                    .map(|subs| subs.keys().map(|s| s.clone()).collect())
                     .unwrap_or(vec![])
             })?;
 
@@ -44,14 +40,12 @@ pub async fn subscribe_command(
         }
         ["remove", url] => {
             DB.write(|db| {
-                let subs = db
-                    .subscribe
+                db.subscribe
                     .chat_to_sub
                     .entry(context.chat_id())
-                    .or_default();
-                subs.retain(|sub| match sub {
-                    Subscription::RSS { url: sub_url, .. } => url != sub_url,
-                });
+                    .and_modify(|subs| {
+                        subs.remove(&url.to_string());
+                    });
             })?;
             DB.save()?;
             context.answer("OK").await?;
