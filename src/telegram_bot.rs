@@ -103,7 +103,7 @@ async fn messages_handler(rx: DispatcherHandlerRx<AutoSend<Bot>, Message>) {
         .for_each_concurrent(None, |message| async move {
             if let Err(err) = process_message(&message).await {
                 let _ = message
-                    .answer(format!("Error: {:?}", err))
+                    .answer(format!("Something went wrong. Please try again later."))
                     .await
                     .map_err(|err| error!("{:?}", err));
                 error!("{:?}", err);

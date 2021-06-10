@@ -6,12 +6,12 @@ edition = "2018"
 
 
 [dependencies]
-anyhow = { version = "1.0.40", features = ["backtrace"] }
+anyhow = { version = "1.0.41", features = ["backtrace"] }
 bytes = "1.0.1"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 env_logger = "0.8.3"
-feed-rs = "0.6.0"
+feed-rs = "0.6.1"
 futures = "0.3.15"
 image = "0.23.14"
 lazy_static = "1.4.0"
@@ -26,20 +26,20 @@ reqwest = { version = "0.11.3", default-features = false, features = [
 ] }
 rustbreak = { version = "2.0.0", features = ["yaml_enc"] }
 serde = { version = "1.0.126", features = ["derive"] }
-serenity = { version = "0.10.5", default-features = false, features = [
+serenity = { version = "0.10.7", default-features = false, features = [
   "client",
   "gateway",
   "rustls_backend",
   "model",
 ] }
-teloxide = { version = "0.4.0", features = ["auto-send", "macros", "rustls"] }
-tokio = { version = "1.5.0", features = ["full"] }
-tokio-stream = "0.1.5"
+teloxide = { version = "0.4.0", features = ["auto-send", "macros", "rustls"], default-features = false }
+tokio = { version = "1.6.1", features = ["full"] }
+tokio-stream = "0.1.6"
 
 # TODO: This section is a quick-fix to avoid linking OpenSSL. Remove when new Teloxide version released.
 [patch.crates-io]
 teloxide = { git = "https://github.com/teloxide/teloxide", branch = "dev" }
-teloxide-core = { git = "https://github.com/teloxide/teloxide-core", branch = "master" }
+# teloxide-core = { git = "https://github.com/teloxide/teloxide-core", branch = "master" }
 
 [build-dependencies]
 prost-build = "0.7.0"
