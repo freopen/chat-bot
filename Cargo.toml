@@ -2,48 +2,38 @@
 name = "chat_bot"
 version = "0.1.0"
 authors = ["Aleksei Zolotov <freopen@freopen.org>"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
-anyhow = { version = "1.0.41", features = ["backtrace"] }
-bytes = "1.0.1"
+anyhow = { version = "1.0.48", features = ["backtrace"] }
+bytes = "1.1.0"
 chrono = "0.4.19"
 dotenv = "0.15.0"
-env_logger = "0.8.3"
-feed-rs = "0.6.1"
-futures = "0.3.15"
+env_logger = "0.9.0"
+feed-rs = "1.0.0"
+futures = "0.3.18"
 image = "0.23.14"
 lazy_static = "1.4.0"
 log = "0.4.14"
 regex = "1.5.4"
-reqwest = { version = "0.11.3", default-features = false, features = [
-  "rustls-tls",
+reqwest = { version = "0.11.6", features = [
   "gzip",
   "brotli",
   "multipart",
   "json",
 ] }
 rustbreak = { version = "2.0.0", features = ["yaml_enc"] }
-serde = { version = "1.0.126", features = ["derive"] }
-serenity = { version = "0.10.7", default-features = false, features = [
+serde = { version = "1.0.130", features = ["derive"] }
+serenity = { version = "0.10.9", default-features = false, features = [
   "client",
   "gateway",
-  "rustls_backend",
+  "native_tls_backend",
   "model",
 ] }
-teloxide = { version = "0.4.0", features = [
-  "auto-send",
-  "macros",
-  "rustls",
-], default-features = false }
-tokio = { version = "1.6.1", features = ["full"] }
-tokio-stream = "0.1.6"
-
-# TODO: This section is a quick-fix to avoid linking OpenSSL. Remove when new Teloxide version released.
-[patch.crates-io]
-teloxide = { git = "https://github.com/teloxide/teloxide", branch = "dev" }
-# teloxide-core = { git = "https://github.com/teloxide/teloxide-core", branch = "master" }
+teloxide = { version = "0.5.3", features = ["auto-send", "macros"] }
+tokio = { version = "1.14.0", features = ["full"] }
+tokio-stream = "0.1.8"
 
 [build-dependencies]
-prost-build = "0.7.0"
+prost-build = "0.9.0"
