@@ -1,8 +1,9 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Build and deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,50 +23,3 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
-
-  build:
-    runs-on: ubuntu-latest
-    needs: check
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag freopen/chat-bot:latest
-    
-    - name: Login to Docker Hub
-      run: docker login -u freopen -p ${{ secrets.DOCKER_HUB_TOKEN }}
-
-    - name: Publish to Docker Hub
-      run: docker push freopen/chat-bot:latest
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      DOCKER_HOST: ssh://root@${{ secrets.SERVER_IP }}
-      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-      TELEGRAM_BOTNAME: ${{ secrets.TELEGRAM_BOTNAME }}
-      DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Add SSH keys
-      run: |
-        mkdir ~/.ssh
-        touch ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        echo "${{ secrets.SERVER_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-        echo "${{ secrets.SERVER_PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
-        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-      shell: bash
-
-    - name: Pull new images
-      run: docker-compose pull
-
-    - name: Update container
-      run: docker-compose up -d
-
-    - name: Prune old images
-      run: docker image prune -a -f
