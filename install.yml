@@ -1,0 +1,67 @@
+---
+- name: Install chat bot
+  hosts: server
+  tasks: 
+    - name: Update rust
+      command: rustup update 
+      register: rustup_update_cmd
+      changed_when: '"unchanged" not in rustup_update_cmd.stdout'
+    - name: Create temp build directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: build
+      register: build_dir
+    - name: Clone git repo
+      git:
+        repo: https://github.com/freopen/chat-bot.git
+        dest: "{{ build_dir.path }}"
+        depth: 1
+        single_branch: yes
+    - name: Build the binary
+      command:
+        chdir: "{{ build_dir.path }}"
+        cmd: cargo install --path . --root /usr/local
+      changed_when: true
+    - name: Copy assets
+      copy:
+        src: "{{ build_dir.path }}/assets"
+        remote_src: yes
+        dest: "/home/chat_bot"
+        owner: chat_bot
+        group: chat_bot
+        mode: 0755
+    - name: Create the user
+      user:
+        name: chat_bot
+        state: present
+        home: /home/chat_bot
+    - name: Copy systemd unit file
+      copy:
+        src: systemd.conf
+        dest: /etc/systemd/system/chat_bot.service
+        owner: root
+        group: root
+        mode: 0644
+    - name: Copy env file
+      copy:
+        src: private_env
+        dest: /home/chat_bot/env
+        owner: chat_bot
+        group: chat_bot
+        mode: 0644
+    - name: Create db directory
+      file:
+        path: /home/chat_bot/db
+        state: directory
+        owner: chat_bot
+        group: chat_bot
+        mode: 0755
+    - name: Enable and restart service
+      systemd:
+        name: chat_bot
+        state: restarted
+        enabled: yes
+    - name: Remove temp build directory
+      file:
+        path: "{{ build_dir.path }}"
+        state: absent
