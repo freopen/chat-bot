@@ -22,5 +22,5 @@ pub struct DBType {
 
 lazy_static! {
   pub static ref DB: PathDatabase<DBType, Yaml> =
-    PathDatabase::load_from_path_or_default("db/db".into()).unwrap();
+    PathDatabase::load_from_path_or_default("db".into()).unwrap();
 }

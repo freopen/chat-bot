@@ -3,7 +3,14 @@ use image::GenericImageView;
 
 pub(crate) fn overlay_image(filename: &str, input_file: Vec<u8>, mirror: bool) -> Result<Vec<u8>> {
   let mut img = image::load_from_memory(&input_file)?;
-  let ovr = image::open(format!("assets/{}.png", filename))?;
+  let assets_folder = {
+    let mut result = std::env::current_exe()?;
+    result.pop();
+    result.pop();
+    result.push("assets");
+    result
+  };
+  let ovr = image::open(format!("{}/{}.png", assets_folder.display(), filename))?;
   let (img_w, img_h) = img.dimensions();
   let (ovr_w, ovr_h) = ovr.dimensions();
   let (new_ovr_w, new_ovr_h) = if img_w * ovr_h < img_h * ovr_w {
