@@ -2,25 +2,28 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     fup.url = "github:gytis-ivaskevicius/flake-utils-plus";
-    naersk = {
-      url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, fup, naersk }@inputs:
+  outputs = { self, nixpkgs, fup }@inputs:
     fup.lib.mkFlake {
       inherit self inputs;
       supportedSystems = [ "x86_64-linux" ];
 
       outputsBuilder = channels: {
-        packages.freopen_chat_bot = (channels.nixpkgs.callPackage naersk { }).buildPackage {
+        packages.default = channels.nixpkgs.runCommand "freopen_chat_bot" {
           src = ./.;
-          nativeBuildInputs = with channels.nixpkgs; [ pkg-config protobuf ];
+          __noChroot = true;
+          nativeBuildInputs = with channels.nixpkgs; [ pkg-config protobuf cargo rustc gcc ];
           buildInputs = with channels.nixpkgs; [ openssl ];
-          postInstall = "cp -R assets $out/assets";
-        };
+        } ''
+          cp -R $src/* .
 
+          cargo build --release
+
+          mkdir -p $out/bin
+          cp target/release/chat_bot $out/bin 
+          cp -R assets $out/assets
+        '';
       };
 
       nixosModules.freopen_chat_bot = { config, pkgs, lib, ... }: {
@@ -33,7 +36,7 @@
         config =
           let
             opts = config.services.freopen_chat_bot;
-            pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.freopen_chat_bot;
+            pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
           in
           lib.mkIf opts.enable {
             users.groups.freopen_chat_bot = { };
