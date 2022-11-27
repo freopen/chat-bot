@@ -46,7 +46,8 @@
             };
             systemd.services.freopen_chat_bot = {
               wantedBy = [ "multi-user.target" ];
-              after = [ "network.target" ];
+              after = [ "network-online.target" ];
+              wants = [ "network-online.target" ];
               serviceConfig = {
                 User = "freopen_chat_bot";
                 ExecStart = "${pkg}/bin/chat_bot";
@@ -54,6 +55,7 @@
                 WorkingDirectory = "/var/lib/freopen_chat_bot";
                 StateDirectory = "freopen_chat_bot";
                 StateDirectoryMode = "0700";
+                Restart = "always";
               };
             };
           };
