@@ -16,6 +16,8 @@
           nativeBuildInputs = with channels.nixpkgs; [ pkg-config protobuf cargo rustc gcc ];
           buildInputs = with channels.nixpkgs; [ openssl ];
         } ''
+          export CARGO_HTTP_CAINFO="${channels.nixpkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+          export SSL_CERT_FILE=${channels.nixpkgs.cacert}/etc/ssl/certs/ca-bundle.crt
           cp -R $src/* .
 
           cargo build --release
