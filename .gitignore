@@ -2,3 +2,4 @@
 /result
 **/*.rs.bk
 /db/
+/flake.lock
