@@ -27,6 +27,7 @@ enum FreopenBotCommand {
   Ukulelify(String),
   Relaxify(String),
   Reallify(String),
+  Frostify(String),
   Subscribe(String),
 }
 
@@ -81,6 +82,7 @@ async fn process_message(context: &UpdateWithCx<AutoSend<Bot>, Message>) -> Resu
         FreopenBotCommand::Ukulelify(param) => ("ukulelify", param),
         FreopenBotCommand::Relaxify(param) => ("relaxify", param),
         FreopenBotCommand::Reallify(param) => ("reallify", param),
+        FreopenBotCommand::Frostify(param) => ("frostify", param),
         _ => return Ok(()),
       };
       let mirror = param == "mirror";
