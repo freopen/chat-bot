@@ -52,7 +52,7 @@ async fn run() -> Result<()> {
       writeln!(buf, " {}", record.args())
     })
     .filter_level(log::LevelFilter::Warn)
-    .filter_module("freopen_chat_bot", log::LevelFilter::Info)
+    .filter_module("chat_bot", log::LevelFilter::Info)
     .init();
 
   select! {
