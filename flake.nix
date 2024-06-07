@@ -24,6 +24,7 @@
         } ''
           export CARGO_HTTP_CAINFO="${channels.nixpkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
           export SSL_CERT_FILE=${channels.nixpkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+          export CARGO_HOME=$(mktemp -d cargo-home.XXX)
           cp -R $src/* .
 
           cargo build --release
